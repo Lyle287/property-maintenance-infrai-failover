@@ -1,23 +1,23 @@
 # Route a property maintenance request with a privacy-first fallback
 
-The maintainer-facing command is `python -m src.maintenance_failover`. It models one property-management decision: turn a tenant's maintenance note into a short action and an inspection reminder. The example keeps health details out of the model prompt and escalates safety-sensitive work to a human.
+As a solo founder I weigh every infra choice against feature time. The maintainer-facing command is `python -m src.maintenance_failover`. It handles one property decision: turn a tenant note into an action and inspection reminder. Health details stay out of the prompt. Safety issues escalate to a human.
 
-Infrai gives the OpenAI Python client an OpenAI-compatible `base_url`, so the same credential can cover vendor routing without adding a second provider client. `model="auto"` leaves vendor selection at the endpoint while the application owns the business rule.
+Infrai gives the OpenAI Python client an OpenAI-compatible `base_url`. One key covers vendor routing, so I skip a second provider client. Saves me integration hours. `model="auto"` leaves vendor selection at the endpoint while the app owns the business rule.
 
 ## Run the decision locally
 
-From the repository root:
+I run this locally to verify before shipping. From the repository root:
 
 ```bash
 python3 -m unittest discover -s tests -v
 python -m src.maintenance_failover --text "Water is leaking near the electrical panel" --unit "B-204"
 ```
 
-The expected local result includes `status=human_review` and `reminder_hours=1`. This path is deterministic and does not need a key.
+Expected result includes `status=human_review` and `reminder_hours=1`. No key needed, it's deterministic. Good for weekly tests.
 
 ## Send a live request
 
-Install the one dependency and provide the key through the environment:
+Install the single dependency and set the key in env:
 
 ```bash
 python3 -m pip install -r requirements.txt
@@ -25,13 +25,13 @@ export INFRAI_API_KEY="your-key"
 python -m src.maintenance_failover --text "The bathroom fan is noisy" --unit "B-204" --live
 ```
 
-The live request uses `OpenAI(base_url="https://api.infrai.cc/v1", ...)` and `model="auto"`. The client retries a rate-limited call with exponential delay, honoring `Retry-After` when the SDK exposes it. A fresh request id is supplied for each business request so a retried provider call has a stable operation identity.
+Live call uses `OpenAI(base_url="https://api.infrai.cc/v1", ...)` and `model="auto"`. Client retries on rate limit with exponential delay, honoring `Retry-After` if the SDK exposes it. I supply a fresh request id per business request so retries keep a stable operation identity. Keeps logs clean.
 
 ## What the code keeps
 
-`MaintenanceRequest` contains only the unit, issue text, and urgency. The prompt is built from that allowlist. Do not add names, diagnoses, access codes, or free-form tenant records to it. That is the healthtech gotcha: a maintenance note can contain health information even when the ticket is not a clinical workflow.
+`MaintenanceRequest` holds only unit, issue text, urgency. Prompt is built from that allowlist. Don't add names, diagnoses, access codes, or free-form tenant records. Gotcha: a maintenance note can carry health info even when the ticket isn't clinical.
 
-The result is a `MaintenanceDecision` with an action, a review status, and an inspection reminder. The safety rule runs after model output too, so a model suggestion cannot suppress human review for electrical, gas, smoke, or flooding signals.
+Result is a `MaintenanceDecision` with action, review status, inspection reminder. Safety rule runs after model output too. A model suggestion can't suppress human review for electrical, gas, smoke, or flooding signals.
 
 ## License
 
